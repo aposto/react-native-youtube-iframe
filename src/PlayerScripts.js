@@ -5,6 +5,10 @@ export const PLAYER_FUNCTIONS = {
   unMuteVideo: 'player.unMute(); true;',
   playVideo: 'player.playVideo(); true;',
   pauseVideo: 'player.pauseVideo(); true;',
+  getVideoUrlScript: `
+window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'getVideoUrl', data: player.getVideoUrl()}));
+true;
+  `,
   durationScript: `
 window.ReactNativeWebView.postMessage(JSON.stringify({eventType: 'getDuration', data: player.getDuration()}));
 true;
@@ -95,15 +99,41 @@ export const MAIN_SCRIPT = (
   const list = typeof playList === 'string' ? playList : '';
   const listType = typeof playList === 'string' ? 'playlist' : '';
   const contentScale_s = typeof contentScale === 'number' ? contentScale : 1.0;
+  const playlist = Array.isArray(playList)
+    ? `playlist: "${playList.join(',')}",`
+    : '';
 
   // scale will either be "initial-scale=1.0"
   let scale = `initial-scale=${contentScale_s}`;
-  if (allowWebViewZoom) {
+  if (!allowWebViewZoom) {
     // or "initial-scale=0.8, maximum-scale=1.0"
     scale += `, maximum-scale=${contentScale_s}`;
   }
 
-  return `
+  const safeData = {
+    end,
+    list,
+    start,
+    color,
+    rel_s,
+    loop_s,
+    listType,
+    playlist,
+    videoId_s,
+    controls_s,
+    playerLang,
+    iv_load_policy,
+    contentScale_s,
+    cc_lang_pref_s,
+    allowWebViewZoom,
+    modestbranding_s,
+    preventFullScreen_s,
+    showClosedCaptions_s,
+  };
+
+  const urlEncodedJSON = encodeURI(JSON.stringify(safeData));
+
+  const htmlString = `
 <!DOCTYPE html>
 <html>
   <head>
@@ -149,6 +179,7 @@ export const MAIN_SCRIPT = (
           height: '1000',
           videoId: '${videoId_s}',
           playerVars: {
+            ${playlist}
             end: ${end},
             rel: ${rel_s},
             playsinline: 1,
@@ -210,4 +241,6 @@ export const MAIN_SCRIPT = (
   </body>
 </html>
 `;
+
+  return {htmlString, urlEncodedJSON};
 };
